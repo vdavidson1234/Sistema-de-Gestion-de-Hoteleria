@@ -25,15 +25,3 @@ La base implementa una demo funcional del flujo principal de reservas, estadías
 - DIP: el calculador depende de interfaces, no de clases concretas.
 - GRASP Controller, Creator e Information Expert: presentes en los gestores y entidades.
 
-## Ejecución
-
-Compilar y ejecutar desde la raíz del proyecto:
-
-```powershell
-javac -d bin (Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName })
-java -cp bin gestionhotelera.App
-```
-
-La demo crea habitaciones, registra un huésped, confirma una reserva, abre una estadía, agrega servicios y calcula el costo final con pago parcial y cierre de la estadía.
-## Getting Started
-
