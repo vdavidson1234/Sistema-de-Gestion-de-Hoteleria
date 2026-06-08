@@ -13,8 +13,8 @@ import java.time.LocalDate;
 import java.util.HashMap;
 
 /**
- * Persistence helper to save/load basic hotel data into SQLite.
- * This implementation handles habitaciones, huespedes and reservas (minimal fields).
+ * Utilidad de persistencia para guardar/cargar datos básicos del hotel en SQLite.
+ * La implementación actual maneja habitaciones, huespedes y reservas (campos mínimos).
  */
 public class HotelPersistence {
     private final Database db;
@@ -23,6 +23,7 @@ public class HotelPersistence {
         this.db = db;
     }
 
+    /** Inicializa el esquema de la base de datos (crea tablas si no existen). */
     public void initialize() throws SQLException {
         db.initializeSchema();
     }
@@ -44,7 +45,7 @@ public class HotelPersistence {
                 upsertHab.executeBatch();
             }
 
-            // reservas + huespedes
+            // reservas + huéspedes
             try (PreparedStatement findHuesped = c.prepareStatement(
                     "SELECT id FROM huespedes WHERE dni = ?")) {
                 try (PreparedStatement insertHuesped = c.prepareStatement(
@@ -55,14 +56,14 @@ public class HotelPersistence {
                         for (Reserva r : hotel.getReservas()) {
                             Huesped h = r.getHuesped();
 
-                            // find or insert huesped
+                            // buscar o insertar huésped
                             findHuesped.setString(1, h.getDni());
                             ResultSet rs = findHuesped.executeQuery();
                             int huespedId = -1;
                             if (rs.next()) {
                                 huespedId = rs.getInt(1);
                             } else {
-                                // Huesped only exposes full name, dni and tipo via getters
+                                // La clase Huesped expone nombre completo, dni y tipo; dejamos otros campos vacíos
                                 insertHuesped.setString(1, h.getNombreCompleto());
                                 insertHuesped.setString(2, "");
                                 insertHuesped.setString(3, h.getDni());
@@ -116,7 +117,7 @@ public class HotelPersistence {
                 }
             }
 
-            // load huespedes and reservas
+            // cargar huéspedes y reservas
             HashMap<Integer, Huesped> huespedMap = new HashMap<>();
             try (PreparedStatement ps = c.prepareStatement("SELECT id, nombre, apellido, dni, telefono, email, tipo FROM huespedes")) {
                 ResultSet rs = ps.executeQuery();
@@ -139,12 +140,8 @@ public class HotelPersistence {
                     Habitacion hab = hotel.buscarHabitacion(habitacionNum);
                     if (h != null && hab != null) {
                         Reserva r = new Reserva(codigo, h, hab, ingreso, egreso);
-                        // try to restore state
-                        try {
-                            r.setEstado(gestionhotelera.state.ReservaConfirmadaState.class.getConstructor().newInstance());
-                        } catch (Exception ex) {
-                            // ignore, state will be default
-                        }
+                        // No intentamos reconstruir el objeto State detalladamente;
+                        // la reserva se cargará con su comportamiento por defecto.
                         hotel.registrarReserva(r);
                     }
                 }

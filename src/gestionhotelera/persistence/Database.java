@@ -6,8 +6,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Simple SQLite connection manager and schema initializer.
- * Note: requires the sqlite-jdbc driver on the classpath at runtime.
+ * Gestor sencillo de conexión SQLite e inicializador de esquema.
+ * Nota: requiere el driver `sqlite-jdbc` en el classpath al ejecutar la aplicación.
  */
 public class Database {
     private final String url;
@@ -20,6 +20,10 @@ public class Database {
         return DriverManager.getConnection(url);
     }
 
+    /**
+     * Crea las tablas necesarias si no existen.
+     * Las tablas y relaciones están pensadas para un esquema SQLite simple.
+     */
     public void initializeSchema() throws SQLException {
         try (Connection c = getConnection(); Statement s = c.createStatement()) {
             s.execute("PRAGMA foreign_keys = ON;");

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800">
   <style> .title { font: bold 18px sans-serif; } .table { font: 14px monospace; } .box { fill:#f8f9fa; stroke:#333; stroke-width:1.2 } .rel { stroke:#444; stroke-width:1.0 } </style>
-  <text x="20" y="30" class="title">Diagrama Entidad-Relación (esperado)</text>
+  <!-- Título eliminado por solicitud del autor -->
 
   <!-- Habitaciones -->
   <rect x="40" y="60" width="260" height="120" class="box"/>
@@ -61,5 +61,5 @@
     </marker>
   </defs>
 
-  <text x="20" y="760" font-size="12">Notas: claves primarias (PK), claves foráneas (FK). Este diagrama es la estructura recomendada para el esquema SQLite.</text>
+  <!-- Notas eliminadas por solicitud del autor -->
 </svg>
