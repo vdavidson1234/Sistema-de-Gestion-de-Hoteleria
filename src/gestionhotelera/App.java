@@ -1,7 +1,5 @@
 package gestionhotelera;
 
-import java.time.LocalDate;
-
 import gestionhotelera.control.GestorEstadias;
 import gestionhotelera.control.GestorHabitaciones;
 import gestionhotelera.control.GestorPagos;
@@ -9,18 +7,21 @@ import gestionhotelera.control.GestorReservas;
 import gestionhotelera.decorator.DesayunoDecorator;
 import gestionhotelera.decorator.LavanderiaDecorator;
 import gestionhotelera.decorator.ServicioBase;
-import gestionhotelera.dominio.ServicioEstadia;
 import gestionhotelera.decorator.SpaDecorator;
 import gestionhotelera.dominio.Habitacion;
 import gestionhotelera.dominio.Hotel;
 import gestionhotelera.dominio.Huesped;
 import gestionhotelera.dominio.Reserva;
+import gestionhotelera.dominio.ServicioEstadia;
 import gestionhotelera.dominio.StaySummary;
 import gestionhotelera.dominio.TipoHabitacion;
 import gestionhotelera.factory.HabitacionFactory;
 import gestionhotelera.pagos.PagoTarjeta;
 import gestionhotelera.strategy.DescuentoClienteFrecuente;
 import gestionhotelera.strategy.PoliticaPrecioNormal;
+import gestionhotelera.ui.HotelGUI;
+import java.time.LocalDate;
+import javax.swing.SwingUtilities;
 
 /**
  * Punto de entrada de la aplicación.
@@ -30,11 +31,20 @@ import gestionhotelera.strategy.PoliticaPrecioNormal;
 public class App {
 
     /**
-     * Ejecuta una demostración simple del sistema hotelero.
+     * Ejecuta la aplicacion.
      *
      * @param args argumentos de línea de comandos, no utilizados en esta demo
      */
     public static void main(String[] args) {
+        if (args.length > 0 && "demo".equalsIgnoreCase(args[0])) {
+            ejecutarDemo();
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> new HotelGUI().setVisible(true));
+    }
+
+    private static void ejecutarDemo() {
         Hotel hotel = new Hotel("Hotel Aurora", "Av. Central 123");
         HabitacionFactory habitacionFactory = new HabitacionFactory();
         GestorHabitaciones gestorHabitaciones = new GestorHabitaciones(hotel, habitacionFactory);
