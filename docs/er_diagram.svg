@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800">
+  <style> .title { font: bold 18px sans-serif; } .table { font: 14px monospace; } .box { fill:#f8f9fa; stroke:#333; stroke-width:1.2 } .rel { stroke:#444; stroke-width:1.0 } </style>
+  <text x="20" y="30" class="title">Diagrama Entidad-Relación (esperado)</text>
+
+  <!-- Habitaciones -->
+  <rect x="40" y="60" width="260" height="120" class="box"/>
+  <text x="60" y="85" class="table">Habitaciones</text>
+  <text x="60" y="105" class="table">- numero (PK)</text>
+  <text x="60" y="125" class="table">- capacidad</text>
+  <text x="60" y="145" class="table">- precio_base</text>
+  <text x="60" y="165" class="table">- tipo</text>
+  <text x="60" y="185" class="table">- estado</text>
+
+  <!-- Huespedes -->
+  <rect x="360" y="60" width="300" height="120" class="box"/>
+  <text x="380" y="85" class="table">Huespedes</text>
+  <text x="380" y="105" class="table">- id (PK)</text>
+  <text x="380" y="125" class="table">- nombre</text>
+  <text x="380" y="145" class="table">- apellido</text>
+  <text x="380" y="165" class="table">- dni</text>
+  <text x="380" y="185" class="table">- telefono, email, tipo</text>
+
+  <!-- Reservas -->
+  <rect x="40" y="220" width="420" height="120" class="box"/>
+  <text x="60" y="245" class="table">Reservas</text>
+  <text x="60" y="265" class="table">- codigo (PK)</text>
+  <text x="60" y="285" class="table">- huesped_id (FK -> Huespedes.id)</text>
+  <text x="60" y="305" class="table">- habitacion_num (FK -> Habitaciones.numero)</text>
+  <text x="60" y="325" class="table">- fecha_ingreso, fecha_egreso</text>
+  <text x="60" y="345" class="table">- estado</text>
+
+  <!-- Estadias -->
+  <rect x="500" y="220" width="300" height="100" class="box"/>
+  <text x="520" y="245" class="table">Estadias</text>
+  <text x="520" y="265" class="table">- id (PK)</text>
+  <text x="520" y="285" class="table">- reserva_codigo (FK -> Reservas.codigo)</text>
+  <text x="520" y="305" class="table">- fecha_ingreso_real, fecha_egreso_real</text>
+
+  <!-- Servicios -->
+  <rect x="40" y="360" width="320" height="80" class="box"/>
+  <text x="60" y="385" class="table">Servicios</text>
+  <text x="60" y="405" class="table">- id (PK)</text>
+  <text x="60" y="425" class="table">- estadia_id (FK -> Estadias.id)</text>
+  <text x="60" y="445" class="table">- nombre, precio</text>
+
+  <!-- Pagos -->
+  <rect x="400" y="360" width="360" height="100" class="box"/>
+  <text x="420" y="385" class="table">Pagos</text>
+  <text x="420" y="405" class="table">- id (PK)</text>
+  <text x="420" y="425" class="table">- estadia_id (FK -> Estadias.id)</text>
+  <text x="420" y="445" class="table">- monto, fecha, metodo, estado</text>
+
+  <!-- Relationships -->
+  <line x1="360" y1="180" x2="140" y2="220" class="rel" marker-end="url(#arrow)"/>
+  <line x1="200" y1="300" x2="520" y2="260" class="rel"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#444" />
+    </marker>
+  </defs>
+
+  <text x="20" y="760" font-size="12">Notas: claves primarias (PK), claves foráneas (FK). Este diagrama es la estructura recomendada para el esquema SQLite.</text>
+</svg>
