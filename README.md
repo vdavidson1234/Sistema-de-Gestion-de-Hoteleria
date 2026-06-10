@@ -22,7 +22,7 @@ Proyecto Java orientado a objetos para una cadena hotelera. La base implementa u
 
 ## Compilar y ejecutar
 
-El proyecto usa Maven para resolver dependencias, incluido el driver JDBC de PostgreSQL.
+El proyecto usa Maven para resolver dependencias,  incluido el driver JDBC de PostgreSQL.
 
 ```powershell
 mvn compile
