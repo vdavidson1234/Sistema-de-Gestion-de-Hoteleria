@@ -25,6 +25,13 @@ public class Pago {
         this.estadoPago = EstadoPago.PENDIENTE;
     }
 
+    public Pago(double monto, gestionhotelera.pagos.MetodoPago metodoPago, LocalDateTime fechaPago, EstadoPago estadoPago) {
+        this.monto = monto;
+        this.metodoPago = metodoPago;
+        this.fechaPago = fechaPago;
+        this.estadoPago = estadoPago;
+    }
+
     /**
      * Procesa el pago usando el método concreto elegido.
      *

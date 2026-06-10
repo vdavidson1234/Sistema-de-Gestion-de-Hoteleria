@@ -40,6 +40,14 @@ public class Huesped {
         return nombre + " " + apellido;
     }
 
+    public String getNombre() {
+        return nombre;
+    }
+
+    public String getApellido() {
+        return apellido;
+    }
+
     /**
      * Devuelve el DNI del huésped.
      *
@@ -56,6 +64,14 @@ public class Huesped {
      */
     public String getTipoHuesped() {
         return tipoHuesped;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public String getEmail() {
+        return email;
     }
 
     /**

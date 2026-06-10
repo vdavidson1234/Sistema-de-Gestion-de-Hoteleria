@@ -3,7 +3,9 @@ package gestionhotelera.ui;
 import gestionhotelera.control.GestorEstadias;
 import gestionhotelera.control.GestorHabitaciones;
 import gestionhotelera.control.GestorPagos;
+import gestionhotelera.control.GestorPersistenciaHotelera;
 import gestionhotelera.control.GestorReservas;
+import gestionhotelera.control.HotelSnapshot;
 import gestionhotelera.decorator.CocheraDecorator;
 import gestionhotelera.decorator.DesayunoDecorator;
 import gestionhotelera.decorator.LavanderiaDecorator;
@@ -70,6 +72,7 @@ public class HotelGUI extends JFrame {
     private final GestorReservas gestorReservas;
     private final GestorEstadias gestorEstadias;
     private final GestorPagos gestorPagos;
+    private final GestorPersistenciaHotelera gestorPersistencia;
     private final Map<String, Reserva> reservasPorCodigo;
     private final Map<String, Estadia> estadiasPorReserva;
 
@@ -115,13 +118,23 @@ public class HotelGUI extends JFrame {
      * Construye la ventana principal con datos de ejemplo iniciales.
      */
     public HotelGUI() {
-        this.hotel = new Hotel("Hotel Aurora", "Av. Central 123");
+        this(new GestorPersistenciaHotelera());
+    }
+
+    public HotelGUI(GestorPersistenciaHotelera gestorPersistencia) {
+        this.gestorPersistencia = gestorPersistencia;
+        HotelSnapshot snapshot = this.gestorPersistencia.cargarEstadoInicial();
+
+        this.hotel = snapshot.getHotel();
         this.gestorHabitaciones = new GestorHabitaciones(hotel, new HabitacionFactory());
         this.gestorReservas = new GestorReservas(hotel);
         this.gestorEstadias = new GestorEstadias();
         this.gestorPagos = new GestorPagos();
         this.reservasPorCodigo = new LinkedHashMap<>();
-        this.estadiasPorReserva = new LinkedHashMap<>();
+        for (Reserva reserva : hotel.getReservas()) {
+            this.reservasPorCodigo.put(reserva.getCodigo(), reserva);
+        }
+        this.estadiasPorReserva = snapshot.getEstadiasPorReserva();
 
         setTitle("Sistema de Gestion Hotelera");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -190,7 +203,9 @@ public class HotelGUI extends JFrame {
         add(crearContenidoPrincipal(), BorderLayout.CENTER);
         add(crearPanelLog(), BorderLayout.SOUTH);
 
+        log(this.gestorPersistencia.getUltimoMensaje());
         cargarDatosIniciales();
+        persistirSnapshot();
         refrescarTodaLaVista();
     }
 
@@ -199,6 +214,10 @@ public class HotelGUI extends JFrame {
      */
     public static void mostrar() {
         SwingUtilities.invokeLater(() -> new HotelGUI().setVisible(true));
+    }
+
+    public static void mostrar(GestorPersistenciaHotelera gestorPersistencia) {
+        SwingUtilities.invokeLater(() -> new HotelGUI(gestorPersistencia).setVisible(true));
     }
 
     private JComponent crearEncabezado() {
@@ -478,11 +497,23 @@ public class HotelGUI extends JFrame {
     }
 
     private void cargarDatosIniciales() {
+        if (!hotel.getHabitaciones().isEmpty()) {
+            log("Se cargaron datos existentes del hotel.");
+            return;
+        }
+
         gestorHabitaciones.crearYRegistrarHabitacion(101, 2, 45000, TipoHabitacion.SIMPLE);
         gestorHabitaciones.crearYRegistrarHabitacion(202, 3, 68000, TipoHabitacion.DOBLE);
         gestorHabitaciones.crearYRegistrarHabitacion(303, 4, 95000, TipoHabitacion.SUITE);
 
         log("Se cargaron habitaciones de ejemplo para comenzar a trabajar.");
+    }
+
+    private void persistirSnapshot() {
+        String mensaje = gestorPersistencia.guardarSnapshot(hotel, estadiasPorReserva);
+        if (mensaje != null) {
+            log(mensaje);
+        }
     }
 
     private void registrarHabitacion() {
@@ -499,6 +530,7 @@ public class HotelGUI extends JFrame {
             gestorHabitaciones.crearYRegistrarHabitacion(numero, capacidad, precioBase, tipo);
             log("Habitacion " + numero + " registrada correctamente.");
             limpiarCampos(habitacionNumeroField, habitacionCapacidadField, habitacionPrecioField);
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (RuntimeException ex) {
             mostrarError(ex);
@@ -516,6 +548,7 @@ public class HotelGUI extends JFrame {
             EstadoHabitacion estado = (EstadoHabitacion) habitacionEstadoCombo.getSelectedItem();
             habitacion.cambiarEstado(estado);
             log("La habitacion " + numero + " paso a estado " + estado + ".");
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (RuntimeException ex) {
             mostrarError(ex);
@@ -544,6 +577,7 @@ public class HotelGUI extends JFrame {
             log("Reserva creada y confirmada: " + reserva.getCodigo() + ".");
             limpiarCampos(huespedNombreField, huespedApellidoField, huespedDniField, huespedTelefonoField, huespedEmailField,
                     huespedTipoField, reservaHabitacionField, reservaIngresoField, reservaEgresoField, reservaPersonasField);
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (RuntimeException ex) {
             mostrarError(ex);
@@ -564,6 +598,7 @@ public class HotelGUI extends JFrame {
 
             gestorReservas.cancelarReserva(reserva);
             log("Reserva cancelada: " + codigo + ".");
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (RuntimeException ex) {
             mostrarError(ex);
@@ -589,6 +624,7 @@ public class HotelGUI extends JFrame {
             montoPagoField.setText(montoPagoField.getText().isBlank() ? "0" : montoPagoField.getText());
 
             log("Estadia registrada para la reserva " + codigo + ".");
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (RuntimeException ex) {
             mostrarError(ex);
@@ -601,6 +637,7 @@ public class HotelGUI extends JFrame {
             ServicioEstadia servicio = crearServicioDesdeSeleccion();
             gestorEstadias.agregarServicio(estadia, servicio);
             log("Servicio agregado: " + servicio.getNombre() + ".");
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (Exception ex) {
             mostrarError(ex);
@@ -632,6 +669,7 @@ public class HotelGUI extends JFrame {
             MetodoPago metodoPago = crearMetodoPagoDesdeSeleccion();
             gestorPagos.registrarPago(estadia, monto, metodoPago);
             log("Pago registrado por " + metodoPago.getNombre() + ": $ " + String.format("%.2f", monto));
+            persistirSnapshot();
             refrescarTodaLaVista();
         } catch (Exception ex) {
             mostrarError(ex);

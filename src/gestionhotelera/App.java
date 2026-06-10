@@ -3,6 +3,7 @@ package gestionhotelera;
 import gestionhotelera.control.GestorEstadias;
 import gestionhotelera.control.GestorHabitaciones;
 import gestionhotelera.control.GestorPagos;
+import gestionhotelera.control.GestorPersistenciaHotelera;
 import gestionhotelera.control.GestorReservas;
 import gestionhotelera.decorator.DesayunoDecorator;
 import gestionhotelera.decorator.LavanderiaDecorator;
@@ -17,11 +18,12 @@ import gestionhotelera.dominio.StaySummary;
 import gestionhotelera.dominio.TipoHabitacion;
 import gestionhotelera.factory.HabitacionFactory;
 import gestionhotelera.pagos.PagoTarjeta;
+import gestionhotelera.persistence.Database;
+import gestionhotelera.persistence.HotelPersistence;
 import gestionhotelera.strategy.DescuentoClienteFrecuente;
 import gestionhotelera.strategy.PoliticaPrecioNormal;
 import gestionhotelera.ui.HotelGUI;
 import java.time.LocalDate;
-import javax.swing.SwingUtilities;
 
 /**
  * Punto de entrada de la aplicación.
@@ -41,7 +43,11 @@ public class App {
             return;
         }
 
-        SwingUtilities.invokeLater(() -> new HotelGUI().setVisible(true));
+        HotelGUI.mostrar(crearGestorPersistencia());
+    }
+
+    private static GestorPersistenciaHotelera crearGestorPersistencia() {
+        return new GestorPersistenciaHotelera(new HotelPersistence(Database.fromEnvironment()));
     }
 
     private static void ejecutarDemo() {
