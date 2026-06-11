@@ -26,4 +26,12 @@ public interface ServicioConsumido {
      * @return costo total
      */
     double getPrecio();
+
+    default int getCantidad() {
+        return 1;
+    }
+
+    default double getPrecioUnitario() {
+        return getPrecio();
+    }
 }

@@ -1,9 +1,12 @@
 package gestionhotelera.dominio;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import gestionhotelera.strategy.DescuentoStrategy;
+import gestionhotelera.strategy.PoliticaPrecio;
 
 /**
  * Representa la permanencia real de un huésped en el hotel.
@@ -15,6 +18,11 @@ public class Estadia {
     private final LocalDate fechaEgresoReal;
     private final List<ServicioConsumido> servicios;
     private final List<Pago> pagos;
+    private String politicaPrecioNombre;
+    private double politicaPrecioPorcentaje;
+    private String descuentoNombre;
+    private double descuentoPorcentaje;
+    private String descuentoTipoClienteRequerido;
 
     /**
      * Crea una estadía vinculada a una reserva.
@@ -24,11 +32,40 @@ public class Estadia {
      * @param fechaEgresoReal egreso real del huésped
      */
     public Estadia(Reserva reserva, LocalDate fechaIngresoReal, LocalDate fechaEgresoReal) {
+        if (fechaIngresoReal == null || fechaEgresoReal == null || !fechaEgresoReal.isAfter(fechaIngresoReal)) {
+            throw new IllegalArgumentException("La fecha de egreso real debe ser posterior al ingreso real.");
+        }
         this.reserva = reserva;
         this.fechaIngresoReal = fechaIngresoReal;
         this.fechaEgresoReal = fechaEgresoReal;
         this.servicios = new ArrayList<>();
         this.pagos = new ArrayList<>();
+        this.politicaPrecioNombre = "Temporada media";
+        this.politicaPrecioPorcentaje = 0.0;
+        this.descuentoNombre = "Sin descuento";
+        this.descuentoPorcentaje = 0.0;
+        this.descuentoTipoClienteRequerido = "";
+    }
+
+    public void aplicarCondicionesComerciales(PoliticaPrecio politicaPrecio, DescuentoStrategy descuento) {
+        if (politicaPrecio == null || descuento == null) {
+            throw new IllegalArgumentException("Debe indicarse política tarifaria y descuento.");
+        }
+        restaurarCondicionesComerciales(
+                politicaPrecio.getNombre(),
+                politicaPrecio.getPorcentajeAjuste(),
+                descuento.getNombre(),
+                descuento.getPorcentaje(),
+                descuento.getTipoClienteRequerido());
+    }
+
+    public void restaurarCondicionesComerciales(String politicaPrecioNombre, double politicaPrecioPorcentaje,
+            String descuentoNombre, double descuentoPorcentaje, String descuentoTipoClienteRequerido) {
+        this.politicaPrecioNombre = textoOValor(politicaPrecioNombre, "Temporada media");
+        this.politicaPrecioPorcentaje = politicaPrecioPorcentaje;
+        this.descuentoNombre = textoOValor(descuentoNombre, "Sin descuento");
+        this.descuentoPorcentaje = descuentoPorcentaje;
+        this.descuentoTipoClienteRequerido = textoOValor(descuentoTipoClienteRequerido, "");
     }
 
     /**
@@ -68,6 +105,14 @@ public class Estadia {
      * @return suma de pagos registrados
      */
     public double calcularTotalPagado() {
+        double total = reserva.getSenaPagada();
+        for (Pago pago : pagos) {
+            total += pago.getMonto();
+        }
+        return total;
+    }
+
+    public double calcularPagosRegistrados() {
         double total = 0.0;
         for (Pago pago : pagos) {
             total += pago.getMonto();
@@ -103,6 +148,26 @@ public class Estadia {
         return Collections.unmodifiableList(pagos);
     }
 
+    public String getPoliticaPrecioNombre() {
+        return politicaPrecioNombre;
+    }
+
+    public double getPoliticaPrecioPorcentaje() {
+        return politicaPrecioPorcentaje;
+    }
+
+    public String getDescuentoNombre() {
+        return descuentoNombre;
+    }
+
+    public double getDescuentoPorcentaje() {
+        return descuentoPorcentaje;
+    }
+
+    public String getDescuentoTipoClienteRequerido() {
+        return descuentoTipoClienteRequerido;
+    }
+
     /**
      * Devuelve la reserva asociada.
      *
@@ -136,7 +201,8 @@ public class Estadia {
      * @return noches de la estadía
      */
     public int calcularNoches() {
-        return reserva.calcularNoches();
+        long noches = ChronoUnit.DAYS.between(fechaIngresoReal, fechaEgresoReal);
+        return (int) Math.max(noches, 1);
     }
 
     /**
@@ -150,5 +216,9 @@ public class Estadia {
                 " | noches: " + calcularNoches() +
                 " | servicios: " + servicios.size() +
                 " | pagos: " + pagos.size();
+    }
+
+    private String textoOValor(String texto, String valorDefault) {
+        return texto == null || texto.isBlank() ? valorDefault : texto;
     }
 }

@@ -15,4 +15,19 @@ public class DescuentoClienteFrecuente implements DescuentoStrategy {
     public double aplicar(double total) {
         return total * 0.90;
     }
+
+    @Override
+    public String getNombre() {
+        return "Cliente frecuente";
+    }
+
+    @Override
+    public double getPorcentaje() {
+        return 10.0;
+    }
+
+    @Override
+    public String getTipoClienteRequerido() {
+        return "Cliente frecuente";
+    }
 }

@@ -1,65 +1,148 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800">
-  <style> .title { font: bold 18px sans-serif; } .table { font: 14px monospace; } .box { fill:#f8f9fa; stroke:#333; stroke-width:1.2 } .rel { stroke:#444; stroke-width:1.0 } </style>
-  <!-- Título eliminado por solicitud del autor -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="980" viewBox="0 0 1320 980">
+  <style>
+    .title { font: bold 24px Arial, sans-serif; fill: #1f2933; }
+    .subtitle { font: 13px Arial, sans-serif; fill: #52606d; }
+    .table-title { font: bold 16px Arial, sans-serif; fill: #102a43; }
+    .column { font: 13px Consolas, monospace; fill: #243b53; }
+    .note { font: 12px Arial, sans-serif; fill: #52606d; }
+    .box { fill: #f8fafc; stroke: #243b53; stroke-width: 1.4; rx: 6; }
+    .header { fill: #d9e2ec; stroke: #243b53; stroke-width: 1.4; rx: 6; }
+    .rel { stroke: #334e68; stroke-width: 1.5; fill: none; }
+    .card { font: bold 13px Arial, sans-serif; fill: #102a43; }
+  </style>
 
-  <!-- Habitaciones -->
-  <rect x="40" y="60" width="260" height="120" class="box"/>
-  <text x="60" y="85" class="table">Habitaciones</text>
-  <text x="60" y="105" class="table">- numero (PK)</text>
-  <text x="60" y="125" class="table">- capacidad</text>
-  <text x="60" y="145" class="table">- precio_base</text>
-  <text x="60" y="165" class="table">- tipo</text>
-  <text x="60" y="185" class="table">- estado</text>
+  <text x="40" y="42" class="title">Diagrama entidad-relación - Sistema de Gestión Hotelera</text>
+  <text x="40" y="64" class="subtitle">Alineado con docs/schema.sql (PostgreSQL): reservas grupales, baja lógica de habitaciones, política/descuento y servicios con cantidad.</text>
 
   <!-- Huespedes -->
-  <rect x="360" y="60" width="300" height="120" class="box"/>
-  <text x="380" y="85" class="table">Huespedes</text>
-  <text x="380" y="105" class="table">- id (PK)</text>
-  <text x="380" y="125" class="table">- nombre</text>
-  <text x="380" y="145" class="table">- apellido</text>
-  <text x="380" y="165" class="table">- dni</text>
-  <text x="380" y="185" class="table">- telefono, email, tipo</text>
+  <rect x="40" y="100" width="325" height="205" class="box"/>
+  <rect x="40" y="100" width="325" height="34" class="header"/>
+  <text x="58" y="123" class="table-title">huespedes</text>
+  <text x="58" y="154" class="column">id INTEGER PK IDENTITY</text>
+  <text x="58" y="176" class="column">nombre VARCHAR(100) NN</text>
+  <text x="58" y="198" class="column">apellido VARCHAR(100) NN</text>
+  <text x="58" y="220" class="column">dni VARCHAR(32) UQ NN</text>
+  <text x="58" y="242" class="column">telefono VARCHAR(40)</text>
+  <text x="58" y="264" class="column">email VARCHAR(160)</text>
+  <text x="58" y="286" class="column">tipo VARCHAR(60)</text>
+
+  <!-- Habitaciones -->
+  <rect x="475" y="100" width="350" height="225" class="box"/>
+  <rect x="475" y="100" width="350" height="34" class="header"/>
+  <text x="493" y="123" class="table-title">habitaciones</text>
+  <text x="493" y="154" class="column">numero INT PK</text>
+  <text x="493" y="176" class="column">capacidad INTEGER NN</text>
+  <text x="493" y="198" class="column">precio_base NUMERIC(12,2) NN</text>
+  <text x="493" y="220" class="column">tipo VARCHAR(30) NN</text>
+  <text x="493" y="242" class="column">estado VARCHAR(30) NN</text>
+  <text x="493" y="264" class="column">activa BOOLEAN NN DEFAULT TRUE</text>
+  <text x="493" y="295" class="note">CHECK capacidad &gt; 0</text>
+  <text x="493" y="313" class="note">CHECK precio_base &gt;= 0</text>
 
   <!-- Reservas -->
-  <rect x="40" y="220" width="420" height="120" class="box"/>
-  <text x="60" y="245" class="table">Reservas</text>
-  <text x="60" y="265" class="table">- codigo (PK)</text>
-  <text x="60" y="285" class="table">- huesped_id (FK -> Huespedes.id)</text>
-  <text x="60" y="305" class="table">- habitacion_num (FK -> Habitaciones.numero)</text>
-  <text x="60" y="325" class="table">- fecha_ingreso, fecha_egreso</text>
-  <text x="60" y="345" class="table">- estado</text>
+  <rect x="275" y="385" width="520" height="285" class="box"/>
+  <rect x="275" y="385" width="520" height="34" class="header"/>
+  <text x="293" y="408" class="table-title">reservas</text>
+  <text x="293" y="439" class="column">codigo VARCHAR(40) PK</text>
+  <text x="293" y="461" class="column">grupo_codigo VARCHAR(40) NN</text>
+  <text x="293" y="483" class="column">huesped_id INTEGER FK NN (titular)</text>
+  <text x="293" y="505" class="column">habitacion_num INTEGER FK NN</text>
+  <text x="293" y="527" class="column">fecha_ingreso DATE NN</text>
+  <text x="293" y="549" class="column">fecha_egreso DATE NN</text>
+  <text x="293" y="571" class="column">personas INTEGER NN DEFAULT 1</text>
+  <text x="293" y="593" class="column">sena_requerida NUMERIC(12,2) NN</text>
+  <text x="293" y="615" class="column">sena_pagada NUMERIC(12,2) NN</text>
+  <text x="293" y="637" class="column">metodo_sena VARCHAR(80), estado VARCHAR(30) NN</text>
+  <text x="293" y="660" class="note">CHECK fecha_egreso &gt; fecha_ingreso</text>
+
+  <!-- Reserva ocupantes -->
+  <rect x="40" y="405" width="195" height="145" class="box"/>
+  <rect x="40" y="405" width="195" height="34" class="header"/>
+  <text x="58" y="428" class="table-title">reserva_ocupantes</text>
+  <text x="58" y="459" class="column">reserva_codigo FK PK</text>
+  <text x="58" y="481" class="column">huesped_id FK PK</text>
+  <text x="58" y="503" class="column">rol VARCHAR(30) NN</text>
+  <text x="58" y="533" class="note">Titular o acompaniante</text>
 
   <!-- Estadias -->
-  <rect x="500" y="220" width="300" height="100" class="box"/>
-  <text x="520" y="245" class="table">Estadias</text>
-  <text x="520" y="265" class="table">- id (PK)</text>
-  <text x="520" y="285" class="table">- reserva_codigo (FK -> Reservas.codigo)</text>
-  <text x="520" y="305" class="table">- fecha_ingreso_real, fecha_egreso_real</text>
+  <rect x="910" y="385" width="370" height="285" class="box"/>
+  <rect x="910" y="385" width="370" height="34" class="header"/>
+  <text x="928" y="408" class="table-title">estadias</text>
+  <text x="928" y="439" class="column">id INTEGER PK IDENTITY</text>
+  <text x="928" y="461" class="column">reserva_codigo VARCHAR(40) FK UQ NN</text>
+  <text x="928" y="483" class="column">fecha_ingreso_real DATE NN</text>
+  <text x="928" y="505" class="column">fecha_egreso_real DATE NN</text>
+  <text x="928" y="527" class="column">politica_precio_nombre VARCHAR(80) NN</text>
+  <text x="928" y="549" class="column">politica_precio_porcentaje NUMERIC(6,2) NN</text>
+  <text x="928" y="571" class="column">descuento_nombre VARCHAR(80) NN</text>
+  <text x="928" y="593" class="column">descuento_porcentaje NUMERIC(6,2) NN</text>
+  <text x="928" y="615" class="column">descuento_tipo_cliente VARCHAR(80)</text>
+  <text x="928" y="646" class="note">CHECK fecha_egreso_real &gt;= fecha_ingreso_real</text>
+  <text x="928" y="664" class="note">Una reserva puede tener como máximo una estadía</text>
 
   <!-- Servicios -->
-  <rect x="40" y="360" width="320" height="80" class="box"/>
-  <text x="60" y="385" class="table">Servicios</text>
-  <text x="60" y="405" class="table">- id (PK)</text>
-  <text x="60" y="425" class="table">- estadia_id (FK -> Estadias.id)</text>
-  <text x="60" y="445" class="table">- nombre, precio</text>
+  <rect x="610" y="745" width="360" height="185" class="box"/>
+  <rect x="610" y="745" width="360" height="34" class="header"/>
+  <text x="628" y="768" class="table-title">servicios</text>
+  <text x="628" y="799" class="column">id INTEGER PK IDENTITY</text>
+  <text x="628" y="821" class="column">estadia_id INTEGER FK NN</text>
+  <text x="628" y="843" class="column">nombre VARCHAR(120) NN</text>
+  <text x="628" y="865" class="column">descripcion TEXT</text>
+  <text x="628" y="887" class="column">cantidad INTEGER NN CHECK &gt; 0</text>
+  <text x="628" y="909" class="column">precio_unitario NUMERIC(12,2) NN</text>
+  <text x="628" y="925" class="note">precio = precio_unitario * cantidad</text>
 
   <!-- Pagos -->
-  <rect x="400" y="360" width="360" height="100" class="box"/>
-  <text x="420" y="385" class="table">Pagos</text>
-  <text x="420" y="405" class="table">- id (PK)</text>
-  <text x="420" y="425" class="table">- estadia_id (FK -> Estadias.id)</text>
-  <text x="420" y="445" class="table">- monto, fecha, metodo, estado</text>
+  <rect x="1010" y="745" width="270" height="165" class="box"/>
+  <rect x="1010" y="745" width="270" height="34" class="header"/>
+  <text x="1028" y="768" class="table-title">pagos</text>
+  <text x="1028" y="799" class="column">id INTEGER PK IDENTITY</text>
+  <text x="1028" y="821" class="column">estadia_id INTEGER FK NN</text>
+  <text x="1028" y="843" class="column">monto NUMERIC(12,2) NN CHECK &gt;= 0</text>
+  <text x="1028" y="865" class="column">fecha TIMESTAMP NN</text>
+  <text x="1028" y="887" class="column">metodo, estado VARCHAR NN</text>
 
   <!-- Relationships -->
-  <line x1="360" y1="180" x2="140" y2="220" class="rel" marker-end="url(#arrow)"/>
-  <line x1="200" y1="300" x2="520" y2="260" class="rel"/>
+  <path d="M202 305 L382 385" class="rel"/>
+  <text x="210" y="330" class="card">1</text>
+  <text x="365" y="374" class="card">N</text>
+  <text x="250" y="348" class="note">titular de reserva</text>
 
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#444" />
-    </marker>
-  </defs>
+  <path d="M650 305 L600 385" class="rel"/>
+  <text x="660" y="330" class="card">1</text>
+  <text x="604" y="374" class="card">N</text>
+  <text x="625" y="350" class="note">habitación reservada</text>
 
-  <!-- Notas eliminadas por solicitud del autor -->
+  <path d="M235 470 L275 470" class="rel"/>
+  <text x="244" y="460" class="card">N</text>
+  <text x="260" y="460" class="card">1</text>
+
+  <path d="M138 405 L138 305 L202 305" class="rel"/>
+  <text x="146" y="332" class="card">N</text>
+  <text x="184" y="296" class="card">1</text>
+  <text x="68" y="356" class="note">ocupantes registrados</text>
+
+  <path d="M795 500 L910 500" class="rel"/>
+  <text x="808" y="490" class="card">1</text>
+  <text x="868" y="490" class="card">0..1</text>
+  <text x="820" y="523" class="note">reserva_codigo UQ</text>
+
+  <path d="M1030 670 L810 745" class="rel"/>
+  <text x="1018" y="690" class="card">1</text>
+  <text x="826" y="731" class="card">N</text>
+  <text x="846" y="683" class="note">servicios de estadía</text>
+
+  <path d="M1135 670 L1135 745" class="rel"/>
+  <text x="1146" y="690" class="card">1</text>
+  <text x="1146" y="731" class="card">N</text>
+  <text x="1152" y="683" class="note">pagos de estadía</text>
+
+  <!-- Legend -->
+  <rect x="40" y="760" width="500" height="135" class="box"/>
+  <text x="58" y="788" class="table-title">Leyenda</text>
+  <text x="58" y="814" class="note">PK: clave primaria | FK: clave foranea | UQ: unico | NN: NOT NULL</text>
+  <text x="58" y="837" class="note">grupo_codigo agrupa varias habitaciones reservadas por el mismo titular.</text>
+  <text x="58" y="860" class="note">reserva_ocupantes define quiénes ocupan cada habitación reservada.</text>
+  <text x="58" y="883" class="note">activa=false conserva histórico sin mostrar la habitación en catálogo operativo.</text>
 </svg>

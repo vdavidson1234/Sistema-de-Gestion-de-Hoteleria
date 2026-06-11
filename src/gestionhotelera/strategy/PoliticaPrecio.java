@@ -13,4 +13,8 @@ public interface PoliticaPrecio {
      * @return importe ajustado
      */
     double calcularPrecio(double base);
+
+    String getNombre();
+
+    double getPorcentajeAjuste();
 }

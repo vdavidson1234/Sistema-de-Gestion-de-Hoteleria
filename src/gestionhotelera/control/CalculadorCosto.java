@@ -21,8 +21,8 @@ public class CalculadorCosto {
     public double calcularCosto(Estadia estadia, PoliticaPrecio politicaPrecio, DescuentoStrategy descuento) {
         double baseHabitacion = estadia.getReserva().getHabitacion().getPrecioBase() * estadia.calcularNoches();
         double totalServicios = estadia.calcularTotalServicios();
-        double baseTotal = baseHabitacion + totalServicios;
-        double precioAjustado = politicaPrecio.calcularPrecio(baseTotal);
-        return descuento.aplicar(precioAjustado);
+        double habitacionAjustada = politicaPrecio.calcularPrecio(baseHabitacion);
+        double baseTotal = habitacionAjustada + totalServicios;
+        return descuento.aplicar(baseTotal);
     }
 }

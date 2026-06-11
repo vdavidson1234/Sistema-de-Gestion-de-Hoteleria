@@ -19,10 +19,6 @@ public class HabitacionFactory {
      * @return habitación lista para registrar
      */
     public Habitacion crearHabitacion(int numero, int capacidad, double precioBase, TipoHabitacion tipo) {
-        return switch (tipo) {
-            case SIMPLE -> new Habitacion(numero, capacidad, precioBase, tipo);
-            case DOBLE -> new Habitacion(numero, capacidad, precioBase, tipo);
-            case SUITE -> new Habitacion(numero, capacidad, precioBase, tipo);
-        };
+        return new Habitacion(numero, tipo.getCapacidadEstandar(), tipo.getPrecioBase(), tipo);
     }
 }

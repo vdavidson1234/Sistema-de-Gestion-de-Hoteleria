@@ -15,4 +15,14 @@ public class PoliticaPrecioTemporadaAlta implements PoliticaPrecio {
     public double calcularPrecio(double base) {
         return base * 1.20;
     }
+
+    @Override
+    public String getNombre() {
+        return "Temporada alta";
+    }
+
+    @Override
+    public double getPorcentajeAjuste() {
+        return 20.0;
+    }
 }

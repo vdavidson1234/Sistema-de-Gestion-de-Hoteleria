@@ -12,6 +12,7 @@ import java.util.List;
 public class Hotel {
     private final String nombre;
     private final String direccion;
+    private final List<Huesped> huespedes;
     private final List<Habitacion> habitaciones;
     private final List<Reserva> reservas;
 
@@ -24,8 +25,19 @@ public class Hotel {
     public Hotel(String nombre, String direccion) {
         this.nombre = nombre;
         this.direccion = direccion;
+        this.huespedes = new ArrayList<>();
         this.habitaciones = new ArrayList<>();
         this.reservas = new ArrayList<>();
+    }
+
+    public void registrarHuesped(Huesped huesped) {
+        if (huesped == null || huesped.getDni() == null || huesped.getDni().isBlank()) {
+            return;
+        }
+        Huesped existente = buscarHuespedPorDni(huesped.getDni());
+        if (existente == null) {
+            huespedes.add(huesped);
+        }
     }
 
     /**
@@ -34,7 +46,36 @@ public class Hotel {
      * @param habitacion habitación nueva
      */
     public void agregarHabitacion(Habitacion habitacion) {
+        Habitacion existente = buscarHabitacion(habitacion.getNumero());
+        if (existente != null) {
+            if (existente.estaActiva()) {
+                throw new IllegalStateException("Ya existe una habitacion activa con ese numero.");
+            }
+            existente.reactivar();
+            return;
+        }
         habitaciones.add(habitacion);
+    }
+
+    public void eliminarHabitacion(int numero) {
+        Habitacion habitacion = buscarHabitacion(numero);
+        if (habitacion == null) {
+            throw new IllegalStateException("No existe una habitacion con ese numero.");
+        }
+        boolean tieneHistorial = false;
+        for (Reserva reserva : reservas) {
+            if (reserva.getHabitacion().getNumero() == numero) {
+                if (reserva.bloqueaDisponibilidad()) {
+                    throw new IllegalStateException("No se puede eliminar una habitacion con reservas pendientes o confirmadas.");
+                }
+                tieneHistorial = true;
+            }
+        }
+        if (tieneHistorial) {
+            habitacion.darDeBaja();
+        } else {
+            habitaciones.remove(habitacion);
+        }
     }
 
     /**
@@ -43,7 +84,23 @@ public class Hotel {
      * @param reserva reserva creada por el sistema
      */
     public void registrarReserva(Reserva reserva) {
+        registrarHuesped(reserva.getHuesped());
+        for (Huesped ocupante : reserva.getOcupantes()) {
+            registrarHuesped(ocupante);
+        }
         reservas.add(reserva);
+    }
+
+    public Huesped buscarHuespedPorDni(String dni) {
+        if (dni == null) {
+            return null;
+        }
+        for (Huesped huesped : huespedes) {
+            if (dni.trim().equalsIgnoreCase(huesped.getDni())) {
+                return huesped;
+            }
+        }
+        return null;
     }
 
     /**
@@ -73,7 +130,7 @@ public class Hotel {
     public List<Habitacion> consultarDisponibilidad(LocalDate fechaIngreso, LocalDate fechaEgreso, int personas) {
         List<Habitacion> disponibles = new ArrayList<>();
         for (Habitacion habitacion : habitaciones) {
-            if (habitacion.getCapacidad() < personas || !habitacion.estaDisponible()) {
+            if (habitacion.getCapacidad() < personas || !habitacion.admiteReservas()) {
                 continue;
             }
             boolean ocupadaPorReserva = false;
@@ -99,7 +156,21 @@ public class Hotel {
      * @return lista no modificable
      */
     public List<Habitacion> getHabitaciones() {
+        List<Habitacion> activas = new ArrayList<>();
+        for (Habitacion habitacion : habitaciones) {
+            if (habitacion.estaActiva()) {
+                activas.add(habitacion);
+            }
+        }
+        return Collections.unmodifiableList(activas);
+    }
+
+    public List<Habitacion> getTodasLasHabitaciones() {
         return Collections.unmodifiableList(habitaciones);
+    }
+
+    public List<Huesped> getHuespedes() {
+        return Collections.unmodifiableList(huespedes);
     }
 
     /**

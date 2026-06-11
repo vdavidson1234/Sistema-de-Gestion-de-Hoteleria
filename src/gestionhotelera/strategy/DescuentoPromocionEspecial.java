@@ -15,4 +15,19 @@ public class DescuentoPromocionEspecial implements DescuentoStrategy {
     public double aplicar(double total) {
         return total * 0.80;
     }
+
+    @Override
+    public String getNombre() {
+        return "Promoción especial";
+    }
+
+    @Override
+    public double getPorcentaje() {
+        return 20.0;
+    }
+
+    @Override
+    public String getTipoClienteRequerido() {
+        return "Promocional";
+    }
 }

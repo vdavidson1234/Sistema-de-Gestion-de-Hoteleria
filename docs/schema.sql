@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS habitaciones (
   precio_base NUMERIC(12, 2) NOT NULL,
   tipo VARCHAR(30) NOT NULL,
   estado VARCHAR(30) NOT NULL,
+  activa BOOLEAN NOT NULL DEFAULT TRUE,
   CONSTRAINT habitaciones_capacidad_chk CHECK (capacidad > 0),
   CONSTRAINT habitaciones_precio_chk CHECK (precio_base >= 0)
 );
@@ -23,16 +24,35 @@ CREATE TABLE IF NOT EXISTS huespedes (
 
 CREATE TABLE IF NOT EXISTS reservas (
   codigo VARCHAR(40) PRIMARY KEY,
+  grupo_codigo VARCHAR(40) NOT NULL,
   huesped_id INTEGER NOT NULL,
   habitacion_num INTEGER NOT NULL,
   fecha_ingreso DATE NOT NULL,
   fecha_egreso DATE NOT NULL,
+  personas INTEGER NOT NULL DEFAULT 1,
+  sena_requerida NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  sena_pagada NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  metodo_sena VARCHAR(80),
   estado VARCHAR(30) NOT NULL,
   CONSTRAINT reservas_fechas_chk CHECK (fecha_egreso > fecha_ingreso),
+  CONSTRAINT reservas_personas_chk CHECK (personas > 0),
+  CONSTRAINT reservas_sena_requerida_chk CHECK (sena_requerida >= 0),
+  CONSTRAINT reservas_sena_pagada_chk CHECK (sena_pagada >= 0),
   CONSTRAINT reservas_huesped_fk
     FOREIGN KEY (huesped_id) REFERENCES huespedes(id) ON DELETE CASCADE,
   CONSTRAINT reservas_habitacion_fk
     FOREIGN KEY (habitacion_num) REFERENCES habitaciones(numero) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS reserva_ocupantes (
+  reserva_codigo VARCHAR(40) NOT NULL,
+  huesped_id INTEGER NOT NULL,
+  rol VARCHAR(30) NOT NULL,
+  PRIMARY KEY (reserva_codigo, huesped_id),
+  CONSTRAINT reserva_ocupantes_reserva_fk
+    FOREIGN KEY (reserva_codigo) REFERENCES reservas(codigo) ON DELETE CASCADE,
+  CONSTRAINT reserva_ocupantes_huesped_fk
+    FOREIGN KEY (huesped_id) REFERENCES huespedes(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS estadias (
@@ -40,6 +60,11 @@ CREATE TABLE IF NOT EXISTS estadias (
   reserva_codigo VARCHAR(40) NOT NULL UNIQUE,
   fecha_ingreso_real DATE NOT NULL,
   fecha_egreso_real DATE NOT NULL,
+  politica_precio_nombre VARCHAR(80) NOT NULL DEFAULT 'Temporada media',
+  politica_precio_porcentaje NUMERIC(6, 2) NOT NULL DEFAULT 0,
+  descuento_nombre VARCHAR(80) NOT NULL DEFAULT 'Sin descuento',
+  descuento_porcentaje NUMERIC(6, 2) NOT NULL DEFAULT 0,
+  descuento_tipo_cliente VARCHAR(80),
   CONSTRAINT estadias_fechas_chk CHECK (fecha_egreso_real >= fecha_ingreso_real),
   CONSTRAINT estadias_reserva_fk
     FOREIGN KEY (reserva_codigo) REFERENCES reservas(codigo) ON DELETE CASCADE
@@ -50,7 +75,11 @@ CREATE TABLE IF NOT EXISTS servicios (
   estadia_id INTEGER NOT NULL,
   nombre VARCHAR(120) NOT NULL,
   descripcion TEXT,
+  cantidad INTEGER NOT NULL DEFAULT 1,
+  precio_unitario NUMERIC(12, 2) NOT NULL DEFAULT 0,
   precio NUMERIC(12, 2) NOT NULL,
+  CONSTRAINT servicios_cantidad_chk CHECK (cantidad > 0),
+  CONSTRAINT servicios_precio_unitario_chk CHECK (precio_unitario >= 0),
   CONSTRAINT servicios_precio_chk CHECK (precio >= 0),
   CONSTRAINT servicios_estadia_fk
     FOREIGN KEY (estadia_id) REFERENCES estadias(id) ON DELETE CASCADE
@@ -70,6 +99,12 @@ CREATE TABLE IF NOT EXISTS pagos (
 
 CREATE INDEX IF NOT EXISTS idx_reservas_habitacion_fechas
   ON reservas(habitacion_num, fecha_ingreso, fecha_egreso);
+
+CREATE INDEX IF NOT EXISTS idx_reservas_grupo
+  ON reservas(grupo_codigo);
+
+CREATE INDEX IF NOT EXISTS idx_reserva_ocupantes_huesped
+  ON reserva_ocupantes(huesped_id);
 
 CREATE INDEX IF NOT EXISTS idx_servicios_estadia
   ON servicios(estadia_id);

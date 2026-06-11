@@ -15,8 +15,11 @@ public class ReservaPendienteState implements EstadoReservaComportamiento {
      */
     @Override
     public void confirmar(Reserva reserva) {
+        if (!reserva.tieneSenaSuficiente()) {
+            throw new IllegalStateException("Para confirmar la reserva se debe registrar una seña mínima del 25%.");
+        }
         reserva.setEstado(new ReservaConfirmadaState());
-        reserva.getHabitacion().cambiarEstado(gestionhotelera.dominio.EstadoHabitacion.OCUPADA);
+        reserva.getHabitacion().cambiarEstado(gestionhotelera.dominio.EstadoHabitacion.RESERVADA);
     }
 
     /**

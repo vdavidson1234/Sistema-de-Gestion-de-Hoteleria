@@ -21,7 +21,7 @@ import gestionhotelera.pagos.PagoTarjeta;
 import gestionhotelera.persistence.Database;
 import gestionhotelera.persistence.HotelPersistence;
 import gestionhotelera.strategy.DescuentoClienteFrecuente;
-import gestionhotelera.strategy.PoliticaPrecioNormal;
+import gestionhotelera.strategy.PoliticaPrecioTemporadaMedia;
 import gestionhotelera.ui.HotelGUI;
 import java.time.LocalDate;
 
@@ -58,16 +58,20 @@ public class App {
         GestorEstadias gestorEstadias = new GestorEstadias();
         GestorPagos gestorPagos = new GestorPagos();
 
-        Habitacion habitacionSimple = gestorHabitaciones.crearYRegistrarHabitacion(101, 2, 45_000, TipoHabitacion.SIMPLE);
-        Habitacion habitacionDoble = gestorHabitaciones.crearYRegistrarHabitacion(202, 3, 68_000, TipoHabitacion.DOBLE);
-        gestorHabitaciones.crearYRegistrarHabitacion(303, 4, 95_000, TipoHabitacion.SUITE);
+        Habitacion habitacionSimple = gestorHabitaciones.crearYRegistrarHabitacion(101,
+                TipoHabitacion.SIMPLE.getCapacidadEstandar(), TipoHabitacion.SIMPLE.getPrecioBase(), TipoHabitacion.SIMPLE);
+        Habitacion habitacionDoble = gestorHabitaciones.crearYRegistrarHabitacion(202,
+                TipoHabitacion.DOBLE.getCapacidadEstandar(), TipoHabitacion.DOBLE.getPrecioBase(), TipoHabitacion.DOBLE);
+        gestorHabitaciones.crearYRegistrarHabitacion(303,
+                TipoHabitacion.SUITE.getCapacidadEstandar(), TipoHabitacion.SUITE.getPrecioBase(), TipoHabitacion.SUITE);
 
-        Huesped huesped = new Huesped("Ana", "Pereyra", "12345678", "3412345678", "ana@mail.com", "Frecuente");
+        Huesped huesped = new Huesped("Ana", "Pereyra", "12345678", "3412345678", "ana@mail.com", "Cliente frecuente");
 
         LocalDate ingreso = LocalDate.now().plusDays(1);
         LocalDate egreso = ingreso.plusDays(3);
 
         Reserva reserva = gestorReservas.crearReserva(huesped, habitacionDoble.getNumero(), ingreso, egreso, 2);
+        reserva.registrarSena(reserva.calcularSenaRequerida(), "Tarjeta");
         gestorReservas.confirmarReserva(reserva);
 
         servicioDemo(gestorEstadias, gestorPagos, reserva);
@@ -97,11 +101,11 @@ public class App {
 
         double total = gestorEstadias.calcularCostoTotal(
                 resumen.getEstadia(),
-                new PoliticaPrecioNormal(),
+                new PoliticaPrecioTemporadaMedia(),
                 new DescuentoClienteFrecuente());
 
-        gestorPagos.registrarPago(resumen.getEstadia(), total / 2.0, new PagoTarjeta());
-        gestorPagos.registrarPago(resumen.getEstadia(), total / 2.0, new PagoTarjeta());
+        double saldo = resumen.getEstadia().calcularSaldoPendiente(total);
+        gestorPagos.registrarPago(resumen.getEstadia(), saldo, new PagoTarjeta());
         gestorEstadias.finalizarEstadia(resumen.getEstadia());
 
         System.out.println("\n--- Detalle de estadía ---");

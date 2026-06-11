@@ -10,6 +10,7 @@ public class Habitacion {
     private final double precioBase;
     private EstadoHabitacion estado;
     private final TipoHabitacion tipo;
+    private boolean activa;
 
     /**
      * Crea una habitación nueva con estado disponible por defecto.
@@ -25,6 +26,7 @@ public class Habitacion {
         this.precioBase = precioBase;
         this.tipo = tipo;
         this.estado = EstadoHabitacion.DISPONIBLE;
+        this.activa = true;
     }
 
     /**
@@ -33,7 +35,11 @@ public class Habitacion {
      * @return true si está disponible
      */
     public boolean estaDisponible() {
-        return estado == EstadoHabitacion.DISPONIBLE;
+        return activa && estado == EstadoHabitacion.DISPONIBLE;
+    }
+
+    public boolean admiteReservas() {
+        return activa && (estado == EstadoHabitacion.DISPONIBLE || estado == EstadoHabitacion.RESERVADA);
     }
 
     /**
@@ -43,6 +49,20 @@ public class Habitacion {
      */
     public void cambiarEstado(EstadoHabitacion nuevoEstado) {
         this.estado = nuevoEstado;
+    }
+
+    public void darDeBaja() {
+        this.activa = false;
+        this.estado = EstadoHabitacion.BLOQUEADA;
+    }
+
+    public void restaurarActiva(boolean activa) {
+        this.activa = activa;
+    }
+
+    public void reactivar() {
+        this.activa = true;
+        this.estado = EstadoHabitacion.DISPONIBLE;
     }
 
     /**
@@ -81,6 +101,10 @@ public class Habitacion {
         return estado;
     }
 
+    public boolean estaActiva() {
+        return activa;
+    }
+
     /**
      * Devuelve el tipo de habitación.
      *
@@ -97,6 +121,6 @@ public class Habitacion {
      */
     public String resumen() {
         return "Habitación " + numero + " [" + tipo + "] - capacidad: " + capacidad +
-                " - precio base: " + precioBase + " - estado: " + estado;
+                " - precio base: " + precioBase + " - estado: " + estado + " - activa: " + activa;
     }
 }

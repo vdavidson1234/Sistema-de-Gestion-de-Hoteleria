@@ -3,6 +3,7 @@ package gestionhotelera.control;
 import java.time.LocalDate;
 
 import gestionhotelera.dominio.Estadia;
+import gestionhotelera.dominio.EstadoHabitacion;
 import gestionhotelera.dominio.Reserva;
 import gestionhotelera.dominio.ServicioConsumido;
 import gestionhotelera.dominio.StaySummary;
@@ -34,6 +35,7 @@ public class GestorEstadias {
             throw new IllegalStateException("Solo se puede registrar una estadía a partir de una reserva confirmada.");
         }
         Estadia estadia = new Estadia(reserva, fechaIngreso, fechaEgreso);
+        reserva.getHabitacion().cambiarEstado(EstadoHabitacion.OCUPADA);
         return new StaySummary(estadia);
     }
 
@@ -67,5 +69,9 @@ public class GestorEstadias {
     public double calcularCostoTotal(Estadia estadia, PoliticaPrecio politicaPrecio, DescuentoStrategy descuento) {
         CalculadorCosto calculadorCosto = new CalculadorCosto();
         return calculadorCosto.calcularCosto(estadia, politicaPrecio, descuento);
+    }
+
+    public void aplicarCondicionesComerciales(Estadia estadia, PoliticaPrecio politicaPrecio, DescuentoStrategy descuento) {
+        estadia.aplicarCondicionesComerciales(politicaPrecio, descuento);
     }
 }

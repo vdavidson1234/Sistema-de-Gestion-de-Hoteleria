@@ -4,6 +4,7 @@ import gestionhotelera.control.HotelRepository;
 import gestionhotelera.control.HotelSnapshot;
 import gestionhotelera.control.PersistenciaException;
 import gestionhotelera.dominio.Estadia;
+import gestionhotelera.dominio.EstadoHabitacion;
 import gestionhotelera.dominio.EstadoPago;
 import gestionhotelera.dominio.EstadoReserva;
 import gestionhotelera.dominio.Habitacion;
@@ -11,6 +12,7 @@ import gestionhotelera.dominio.Hotel;
 import gestionhotelera.dominio.Huesped;
 import gestionhotelera.dominio.Pago;
 import gestionhotelera.dominio.Reserva;
+import gestionhotelera.dominio.ServicioAdicional;
 import gestionhotelera.dominio.ServicioConsumido;
 import gestionhotelera.dominio.TipoHabitacion;
 import gestionhotelera.pagos.MetodoPago;
@@ -31,8 +33,10 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Adaptador JDBC entre el dominio del hotel y PostgreSQL.
@@ -54,7 +58,9 @@ public class HotelPersistence implements HotelRepository {
         try {
             initialize();
             Hotel hotel = loadHotel();
-            return new HotelSnapshot(hotel, loadEstadias(hotel));
+            Map<String, Estadia> estadias = loadEstadias(hotel);
+            sincronizarEstadosHabitacion(hotel, estadias);
+            return new HotelSnapshot(hotel, estadias);
         } catch (SQLException ex) {
             throw new PersistenciaException("No se pudo cargar el estado del hotel.", ex);
         }
@@ -97,19 +103,22 @@ public class HotelPersistence implements HotelRepository {
 
         try (Connection c = db.getConnection()) {
             try (PreparedStatement ps = c.prepareStatement(
-                    "SELECT numero, capacidad, precio_base, tipo, estado FROM habitaciones ORDER BY numero")) {
+                    "SELECT numero, capacidad, precio_base, tipo, estado, activa FROM habitaciones ORDER BY numero")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     int numero = rs.getInt("numero");
-                    int capacidad = rs.getInt("capacidad");
-                    double precio = rs.getDouble("precio_base");
                     TipoHabitacion tipo = TipoHabitacion.valueOf(rs.getString("tipo"));
-                    Habitacion habitacion = new Habitacion(numero, capacidad, precio, tipo);
+                    Habitacion habitacion = new Habitacion(
+                            numero,
+                            tipo.getCapacidadEstandar(),
+                            tipo.getPrecioBase(),
+                            tipo);
                     try {
                         habitacion.cambiarEstado(gestionhotelera.dominio.EstadoHabitacion.valueOf(rs.getString("estado")));
                     } catch (IllegalArgumentException ex) {
                         // Se ignoran estados desconocidos para no bloquear la carga completa.
                     }
+                    habitacion.restaurarActiva(rs.getBoolean("activa"));
                     hotel.agregarHabitacion(habitacion);
                 }
             }
@@ -128,15 +137,19 @@ public class HotelPersistence implements HotelRepository {
                             rs.getString("email"),
                             rs.getString("tipo"));
                     huespedes.put(id, huesped);
+                    hotel.registrarHuesped(huesped);
                 }
             }
 
+            Map<String, Reserva> reservasPorCodigo = new HashMap<>();
             try (PreparedStatement ps = c.prepareStatement(
-                    "SELECT codigo, huesped_id, habitacion_num, fecha_ingreso, fecha_egreso, estado "
+                    "SELECT codigo, grupo_codigo, huesped_id, habitacion_num, fecha_ingreso, fecha_egreso, "
+                            + "sena_pagada, metodo_sena, estado "
                             + "FROM reservas ORDER BY fecha_ingreso, codigo")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     String codigo = rs.getString("codigo");
+                    String grupoCodigo = rs.getString("grupo_codigo");
                     Huesped huesped = huespedes.get(rs.getInt("huesped_id"));
                     Habitacion habitacion = hotel.buscarHabitacion(rs.getInt("habitacion_num"));
                     if (huesped == null || habitacion == null) {
@@ -144,9 +157,23 @@ public class HotelPersistence implements HotelRepository {
                     }
                     LocalDate ingreso = rs.getDate("fecha_ingreso").toLocalDate();
                     LocalDate egreso = rs.getDate("fecha_egreso").toLocalDate();
-                    Reserva reserva = new Reserva(codigo, huesped, habitacion, ingreso, egreso);
+                    Reserva reserva = new Reserva(codigo, grupoCodigo, huesped, habitacion, ingreso, egreso, null);
+                    reserva.restaurarSena(rs.getDouble("sena_pagada"), rs.getString("metodo_sena"));
                     aplicarEstadoReserva(reserva, rs.getString("estado"));
                     hotel.registrarReserva(reserva);
+                    reservasPorCodigo.put(codigo, reserva);
+                }
+            }
+
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT reserva_codigo, huesped_id FROM reserva_ocupantes ORDER BY reserva_codigo, rol, huesped_id")) {
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    Reserva reserva = reservasPorCodigo.get(rs.getString("reserva_codigo"));
+                    Huesped ocupante = huespedes.get(rs.getInt("huesped_id"));
+                    if (reserva != null && ocupante != null) {
+                        reserva.agregarOcupante(ocupante);
+                    }
                 }
             }
         }
@@ -165,7 +192,9 @@ public class HotelPersistence implements HotelRepository {
 
         try (Connection c = db.getConnection()) {
             try (PreparedStatement ps = c.prepareStatement(
-                    "SELECT id, reserva_codigo, fecha_ingreso_real, fecha_egreso_real FROM estadias ORDER BY id")) {
+                    "SELECT id, reserva_codigo, fecha_ingreso_real, fecha_egreso_real, "
+                            + "politica_precio_nombre, politica_precio_porcentaje, descuento_nombre, "
+                            + "descuento_porcentaje, descuento_tipo_cliente FROM estadias ORDER BY id")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     String codigoReserva = rs.getString("reserva_codigo");
@@ -177,21 +206,33 @@ public class HotelPersistence implements HotelRepository {
                             reserva,
                             rs.getDate("fecha_ingreso_real").toLocalDate(),
                             rs.getDate("fecha_egreso_real").toLocalDate());
+                    estadia.restaurarCondicionesComerciales(
+                            rs.getString("politica_precio_nombre"),
+                            rs.getDouble("politica_precio_porcentaje"),
+                            rs.getString("descuento_nombre"),
+                            rs.getDouble("descuento_porcentaje"),
+                            rs.getString("descuento_tipo_cliente"));
                     estadiasPorReserva.put(codigoReserva, estadia);
                     estadiasPorId.put(rs.getInt("id"), estadia);
                 }
             }
 
             try (PreparedStatement ps = c.prepareStatement(
-                    "SELECT estadia_id, nombre, descripcion, precio FROM servicios ORDER BY id")) {
+                    "SELECT estadia_id, nombre, descripcion, cantidad, precio_unitario, precio FROM servicios ORDER BY id")) {
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
                     Estadia estadia = estadiasPorId.get(rs.getInt("estadia_id"));
                     if (estadia != null) {
-                        estadia.agregarServicio(new ServicioPersistido(
+                        int cantidad = rs.getInt("cantidad");
+                        double precioUnitario = rs.getDouble("precio_unitario");
+                        if (precioUnitario <= 0) {
+                            precioUnitario = rs.getDouble("precio") / Math.max(cantidad, 1);
+                        }
+                        estadia.agregarServicio(new ServicioAdicional(
                                 rs.getString("nombre"),
                                 rs.getString("descripcion"),
-                                rs.getDouble("precio")));
+                                precioUnitario,
+                                Math.max(cantidad, 1)));
                     }
                 }
             }
@@ -219,25 +260,43 @@ public class HotelPersistence implements HotelRepository {
         return estadiasPorReserva;
     }
 
+    private void sincronizarEstadosHabitacion(Hotel hotel, Map<String, Estadia> estadiasPorReserva) {
+        for (Reserva reserva : hotel.getReservas()) {
+            if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
+                continue;
+            }
+            if (estadiasPorReserva.containsKey(reserva.getCodigo())) {
+                reserva.getHabitacion().cambiarEstado(EstadoHabitacion.OCUPADA);
+            } else if (reserva.getHabitacion().getEstado() == EstadoHabitacion.OCUPADA
+                    || reserva.getHabitacion().getEstado() == EstadoHabitacion.DISPONIBLE) {
+                reserva.getHabitacion().cambiarEstado(EstadoHabitacion.RESERVADA);
+            }
+        }
+    }
+
     private void saveHotelData(Connection c, Hotel hotel) throws SQLException {
         try (PreparedStatement upsertHabitacion = c.prepareStatement(
-                "INSERT INTO habitaciones(numero, capacidad, precio_base, tipo, estado) VALUES (?, ?, ?, ?, ?) "
+                "INSERT INTO habitaciones(numero, capacidad, precio_base, tipo, estado, activa) VALUES (?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (numero) DO UPDATE SET "
                         + "capacidad = EXCLUDED.capacidad, "
                         + "precio_base = EXCLUDED.precio_base, "
                         + "tipo = EXCLUDED.tipo, "
-                        + "estado = EXCLUDED.estado")) {
-            for (Habitacion habitacion : hotel.getHabitaciones()) {
+                        + "estado = EXCLUDED.estado, "
+                        + "activa = EXCLUDED.activa")) {
+            for (Habitacion habitacion : hotel.getTodasLasHabitaciones()) {
                 upsertHabitacion.setInt(1, habitacion.getNumero());
                 upsertHabitacion.setInt(2, habitacion.getCapacidad());
                 upsertHabitacion.setDouble(3, habitacion.getPrecioBase());
                 upsertHabitacion.setString(4, habitacion.getTipo().name());
                 upsertHabitacion.setString(5, habitacion.getEstado().name());
+                upsertHabitacion.setBoolean(6, habitacion.estaActiva());
                 upsertHabitacion.addBatch();
             }
             upsertHabitacion.executeBatch();
         }
+        eliminarHabitacionesAusentes(c, hotel);
 
+        Map<String, Integer> huespedIds = new HashMap<>();
         try (PreparedStatement upsertHuesped = c.prepareStatement(
                 "INSERT INTO huespedes(nombre, apellido, dni, telefono, email, tipo) VALUES (?, ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (dni) DO UPDATE SET "
@@ -248,30 +307,91 @@ public class HotelPersistence implements HotelRepository {
                         + "tipo = EXCLUDED.tipo "
                         + "RETURNING id");
                 PreparedStatement upsertReserva = c.prepareStatement(
-                        "INSERT INTO reservas(codigo, huesped_id, habitacion_num, fecha_ingreso, fecha_egreso, estado) "
-                                + "VALUES (?, ?, ?, ?, ?, ?) "
+                        "INSERT INTO reservas(codigo, grupo_codigo, huesped_id, habitacion_num, fecha_ingreso, fecha_egreso, "
+                                + "personas, sena_requerida, sena_pagada, metodo_sena, estado) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
                                 + "ON CONFLICT (codigo) DO UPDATE SET "
+                                + "grupo_codigo = EXCLUDED.grupo_codigo, "
                                 + "huesped_id = EXCLUDED.huesped_id, "
                                 + "habitacion_num = EXCLUDED.habitacion_num, "
                                 + "fecha_ingreso = EXCLUDED.fecha_ingreso, "
                                 + "fecha_egreso = EXCLUDED.fecha_egreso, "
-                                + "estado = EXCLUDED.estado")) {
+                                + "personas = EXCLUDED.personas, "
+                                + "sena_requerida = EXCLUDED.sena_requerida, "
+                                + "sena_pagada = EXCLUDED.sena_pagada, "
+                                + "metodo_sena = EXCLUDED.metodo_sena, "
+                                + "estado = EXCLUDED.estado");
+                PreparedStatement deleteOcupantes = c.prepareStatement(
+                        "DELETE FROM reserva_ocupantes WHERE reserva_codigo = ?");
+                PreparedStatement insertOcupante = c.prepareStatement(
+                        "INSERT INTO reserva_ocupantes(reserva_codigo, huesped_id, rol) VALUES (?, ?, ?) "
+                                + "ON CONFLICT (reserva_codigo, huesped_id) DO UPDATE SET rol = EXCLUDED.rol")) {
+            for (Huesped huesped : hotel.getHuespedes()) {
+                upsertHuesped(huespedIds, upsertHuesped, huesped);
+            }
+
             for (Reserva reserva : hotel.getReservas()) {
-                int huespedId = upsertHuesped(upsertHuesped, reserva.getHuesped());
+                int huespedId = upsertHuesped(huespedIds, upsertHuesped, reserva.getHuesped());
+                for (Huesped ocupante : reserva.getOcupantes()) {
+                    upsertHuesped(huespedIds, upsertHuesped, ocupante);
+                }
 
                 upsertReserva.setString(1, reserva.getCodigo());
-                upsertReserva.setInt(2, huespedId);
-                upsertReserva.setInt(3, reserva.getHabitacion().getNumero());
-                upsertReserva.setDate(4, Date.valueOf(reserva.getFechaIngreso()));
-                upsertReserva.setDate(5, Date.valueOf(reserva.getFechaEgreso()));
-                upsertReserva.setString(6, reserva.getEstado().name());
+                upsertReserva.setString(2, reserva.getGrupoCodigo());
+                upsertReserva.setInt(3, huespedId);
+                upsertReserva.setInt(4, reserva.getHabitacion().getNumero());
+                upsertReserva.setDate(5, Date.valueOf(reserva.getFechaIngreso()));
+                upsertReserva.setDate(6, Date.valueOf(reserva.getFechaEgreso()));
+                upsertReserva.setInt(7, reserva.getCantidadPersonas());
+                upsertReserva.setDouble(8, reserva.calcularSenaRequerida());
+                upsertReserva.setDouble(9, reserva.getSenaPagada());
+                upsertReserva.setString(10, reserva.getMetodoSena());
+                upsertReserva.setString(11, reserva.getEstado().name());
                 upsertReserva.addBatch();
             }
             upsertReserva.executeBatch();
+
+            for (Reserva reserva : hotel.getReservas()) {
+                deleteOcupantes.setString(1, reserva.getCodigo());
+                deleteOcupantes.executeUpdate();
+                for (Huesped ocupante : reserva.getOcupantes()) {
+                    insertOcupante.setString(1, reserva.getCodigo());
+                    insertOcupante.setInt(2, upsertHuesped(huespedIds, upsertHuesped, ocupante));
+                    insertOcupante.setString(3, ocupante.getDni().equalsIgnoreCase(reserva.getHuesped().getDni()) ? "TITULAR" : "ACOMPANIANTE");
+                    insertOcupante.addBatch();
+                }
+                insertOcupante.executeBatch();
+            }
         }
     }
 
-    private int upsertHuesped(PreparedStatement upsertHuesped, Huesped huesped) throws SQLException {
+    private void eliminarHabitacionesAusentes(Connection c, Hotel hotel) throws SQLException {
+        Set<Integer> numerosActuales = new HashSet<>();
+        for (Habitacion habitacion : hotel.getTodasLasHabitaciones()) {
+            numerosActuales.add(habitacion.getNumero());
+        }
+
+        try (PreparedStatement selectHabitaciones = c.prepareStatement("SELECT numero FROM habitaciones");
+                PreparedStatement deleteHabitacion = c.prepareStatement("DELETE FROM habitaciones WHERE numero = ?")) {
+            try (ResultSet rs = selectHabitaciones.executeQuery()) {
+                while (rs.next()) {
+                    int numero = rs.getInt("numero");
+                    if (!numerosActuales.contains(numero)) {
+                        deleteHabitacion.setInt(1, numero);
+                        deleteHabitacion.addBatch();
+                    }
+                }
+            }
+            deleteHabitacion.executeBatch();
+        }
+    }
+
+    private int upsertHuesped(Map<String, Integer> huespedIds, PreparedStatement upsertHuesped, Huesped huesped) throws SQLException {
+        Integer cached = huespedIds.get(huesped.getDni());
+        if (cached != null) {
+            return cached;
+        }
+
         upsertHuesped.setString(1, safe(huesped.getNombre()));
         upsertHuesped.setString(2, safe(huesped.getApellido()));
         upsertHuesped.setString(3, safe(huesped.getDni()));
@@ -281,7 +401,9 @@ public class HotelPersistence implements HotelRepository {
 
         try (ResultSet rs = upsertHuesped.executeQuery()) {
             if (rs.next()) {
-                return rs.getInt("id");
+                int id = rs.getInt("id");
+                huespedIds.put(huesped.getDni(), id);
+                return id;
             }
         }
 
@@ -295,10 +417,12 @@ public class HotelPersistence implements HotelRepository {
                         "DELETE FROM servicios WHERE estadia_id IN (SELECT id FROM estadias WHERE reserva_codigo = ?)");
                 PreparedStatement deleteEstadia = c.prepareStatement("DELETE FROM estadias WHERE reserva_codigo = ?");
                 PreparedStatement insertEstadia = c.prepareStatement(
-                        "INSERT INTO estadias(reserva_codigo, fecha_ingreso_real, fecha_egreso_real) "
-                                + "VALUES (?, ?, ?) RETURNING id");
+                        "INSERT INTO estadias(reserva_codigo, fecha_ingreso_real, fecha_egreso_real, "
+                                + "politica_precio_nombre, politica_precio_porcentaje, descuento_nombre, "
+                                + "descuento_porcentaje, descuento_tipo_cliente) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
                 PreparedStatement insertServicio = c.prepareStatement(
-                        "INSERT INTO servicios(estadia_id, nombre, descripcion, precio) VALUES (?, ?, ?, ?)");
+                        "INSERT INTO servicios(estadia_id, nombre, descripcion, cantidad, precio_unitario, precio) VALUES (?, ?, ?, ?, ?, ?)");
                 PreparedStatement insertPago = c.prepareStatement(
                         "INSERT INTO pagos(estadia_id, monto, fecha, metodo, estado) VALUES (?, ?, ?, ?, ?)")) {
 
@@ -316,6 +440,11 @@ public class HotelPersistence implements HotelRepository {
                 insertEstadia.setString(1, codigoReserva);
                 insertEstadia.setDate(2, Date.valueOf(estadia.getFechaIngresoReal()));
                 insertEstadia.setDate(3, Date.valueOf(estadia.getFechaEgresoReal()));
+                insertEstadia.setString(4, estadia.getPoliticaPrecioNombre());
+                insertEstadia.setDouble(5, estadia.getPoliticaPrecioPorcentaje());
+                insertEstadia.setString(6, estadia.getDescuentoNombre());
+                insertEstadia.setDouble(7, estadia.getDescuentoPorcentaje());
+                insertEstadia.setString(8, estadia.getDescuentoTipoClienteRequerido());
                 int estadiaId;
                 try (ResultSet rs = insertEstadia.executeQuery()) {
                     if (!rs.next()) {
@@ -328,7 +457,9 @@ public class HotelPersistence implements HotelRepository {
                     insertServicio.setInt(1, estadiaId);
                     insertServicio.setString(2, servicio.getNombre());
                     insertServicio.setString(3, servicio.getDescripcion());
-                    insertServicio.setDouble(4, servicio.getPrecio());
+                    insertServicio.setInt(4, servicio.getCantidad());
+                    insertServicio.setDouble(5, servicio.getPrecioUnitario());
+                    insertServicio.setDouble(6, servicio.getPrecio());
                     insertServicio.addBatch();
                 }
                 insertServicio.executeBatch();
@@ -394,32 +525,5 @@ public class HotelPersistence implements HotelRepository {
 
     private String safe(String value) {
         return value == null ? "" : value;
-    }
-
-    private static class ServicioPersistido implements ServicioConsumido {
-        private final String nombre;
-        private final String descripcion;
-        private final double precio;
-
-        ServicioPersistido(String nombre, String descripcion, double precio) {
-            this.nombre = nombre == null ? "Servicio" : nombre;
-            this.descripcion = descripcion == null ? "" : descripcion;
-            this.precio = precio;
-        }
-
-        @Override
-        public String getNombre() {
-            return nombre;
-        }
-
-        @Override
-        public String getDescripcion() {
-            return descripcion;
-        }
-
-        @Override
-        public double getPrecio() {
-            return precio;
-        }
     }
 }

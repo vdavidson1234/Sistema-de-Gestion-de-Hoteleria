@@ -1,6 +1,7 @@
 package gestionhotelera.control;
 
 import gestionhotelera.dominio.Habitacion;
+import gestionhotelera.dominio.EstadoHabitacion;
 import gestionhotelera.dominio.Hotel;
 import gestionhotelera.dominio.TipoHabitacion;
 import gestionhotelera.factory.HabitacionFactory;
@@ -37,5 +38,17 @@ public class GestorHabitaciones {
         Habitacion habitacion = habitacionFactory.crearHabitacion(numero, capacidad, precioBase, tipo);
         hotel.agregarHabitacion(habitacion);
         return habitacion;
+    }
+
+    public void cambiarEstado(int numero, EstadoHabitacion estado) {
+        Habitacion habitacion = hotel.buscarHabitacion(numero);
+        if (habitacion == null) {
+            throw new IllegalStateException("No existe una habitacion con ese numero.");
+        }
+        habitacion.cambiarEstado(estado);
+    }
+
+    public void eliminarHabitacion(int numero) {
+        hotel.eliminarHabitacion(numero);
     }
 }

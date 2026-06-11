@@ -5,6 +5,9 @@ package gestionhotelera.dominio;
  */
 public enum EstadoHabitacion {
     DISPONIBLE,
+    RESERVADA,
     OCUPADA,
-    MANTENIMIENTO
+    LIMPIEZA,
+    MANTENIMIENTO,
+    BLOQUEADA
 }

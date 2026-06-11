@@ -1,146 +1,183 @@
 package gestionhotelera.dominio;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
- * Representa una reserva de habitación.
- * El estado interno se maneja con el patrón State para evitar condicionales repetidos.
+ * Representa una reserva de una habitacion.
+ * Varias reservas pueden compartir grupoCodigo cuando se hacen juntas.
  */
 public class Reserva {
+    public static final double PORCENTAJE_SENA = 0.25;
+
     private final String codigo;
+    private final String grupoCodigo;
     private final Huesped huesped;
     private final Habitacion habitacion;
-    private final java.time.LocalDate fechaIngreso;
-    private final java.time.LocalDate fechaEgreso;
+    private final LocalDate fechaIngreso;
+    private LocalDate fechaEgreso;
+    private final List<Huesped> ocupantes;
+    private double senaPagada;
+    private String metodoSena;
     private gestionhotelera.state.EstadoReservaComportamiento estado;
 
-    /**
-     * Crea una reserva en estado pendiente.
-     *
-     * @param codigo identificador de la reserva
-     * @param huesped huésped asociado
-     * @param habitacion habitación elegida
-     * @param fechaIngreso fecha de ingreso
-     * @param fechaEgreso fecha de egreso
-     */
-    public Reserva(String codigo, Huesped huesped, Habitacion habitacion, java.time.LocalDate fechaIngreso, java.time.LocalDate fechaEgreso) {
+    public Reserva(String codigo, Huesped huesped, Habitacion habitacion, LocalDate fechaIngreso, LocalDate fechaEgreso) {
+        this(codigo, codigo, huesped, habitacion, fechaIngreso, fechaEgreso, null);
+    }
+
+    public Reserva(String codigo, String grupoCodigo, Huesped huesped, Habitacion habitacion, LocalDate fechaIngreso,
+            LocalDate fechaEgreso, List<Huesped> ocupantes) {
         this.codigo = codigo;
+        this.grupoCodigo = grupoCodigo == null || grupoCodigo.isBlank() ? codigo : grupoCodigo;
         this.huesped = huesped;
         this.habitacion = habitacion;
         this.fechaIngreso = fechaIngreso;
         this.fechaEgreso = fechaEgreso;
+        this.ocupantes = new ArrayList<>();
+        if (ocupantes == null || ocupantes.isEmpty()) {
+            agregarOcupante(huesped);
+        } else {
+            for (Huesped ocupante : ocupantes) {
+                agregarOcupante(ocupante);
+            }
+        }
+        this.senaPagada = 0.0;
+        this.metodoSena = "";
         this.estado = new gestionhotelera.state.ReservaPendienteState();
     }
 
-    /**
-     * Confirma la reserva usando el comportamiento del estado actual.
-     */
     public void confirmar() {
         estado.confirmar(this);
     }
 
-    /**
-     * Cancela la reserva usando el comportamiento del estado actual.
-     */
     public void cancelar() {
         estado.cancelar(this);
     }
 
-    /**
-     * Finaliza la reserva usando el comportamiento del estado actual.
-     */
     public void finalizar() {
         estado.finalizar(this);
     }
 
-    /**
-     * Indica si la reserva todavía bloquea la habitación.
-     *
-     * @return true si aún está activa
-     */
+    public void extenderHasta(LocalDate nuevaFechaEgreso) {
+        if (nuevaFechaEgreso == null || !nuevaFechaEgreso.isAfter(fechaEgreso)) {
+            throw new IllegalArgumentException("La nueva fecha de egreso debe ser posterior al egreso actual.");
+        }
+        this.fechaEgreso = nuevaFechaEgreso;
+    }
+
     public boolean bloqueaDisponibilidad() {
         return estado.obtenerEstado() == EstadoReserva.PENDIENTE || estado.obtenerEstado() == EstadoReserva.CONFIRMADA;
     }
 
-    /**
-     * Calcula la cantidad de noches entre ingreso y egreso.
-     *
-     * @return noches de la reserva
-     */
     public int calcularNoches() {
-        long noches = java.time.temporal.ChronoUnit.DAYS.between(fechaIngreso, fechaEgreso);
+        long noches = ChronoUnit.DAYS.between(fechaIngreso, fechaEgreso);
         return (int) Math.max(noches, 1);
     }
 
-    /**
-     * Devuelve el código de la reserva.
-     *
-     * @return código interno
-     */
+    public double calcularTotalHabitacion() {
+        return habitacion.getPrecioBase() * calcularNoches();
+    }
+
+    public double calcularSenaRequerida() {
+        return calcularTotalHabitacion() * PORCENTAJE_SENA;
+    }
+
+    public void registrarSena(double monto, String metodo) {
+        if (monto < calcularSenaRequerida()) {
+            throw new IllegalArgumentException("La seña debe cubrir al menos el 25% de la habitación.");
+        }
+        this.senaPagada = monto;
+        this.metodoSena = metodo == null ? "" : metodo;
+    }
+
+    public void restaurarSena(double monto, String metodo) {
+        this.senaPagada = Math.max(monto, 0.0);
+        this.metodoSena = metodo == null ? "" : metodo;
+    }
+
+    public boolean tieneSenaSuficiente() {
+        return senaPagada >= calcularSenaRequerida();
+    }
+
     public String getCodigo() {
         return codigo;
     }
 
-    /**
-     * Devuelve el huésped asociado.
-     *
-     * @return huésped
-     */
+    public String getGrupoCodigo() {
+        return grupoCodigo;
+    }
+
     public Huesped getHuesped() {
         return huesped;
     }
 
-    /**
-     * Devuelve la habitación reservada.
-     *
-     * @return habitación
-     */
     public Habitacion getHabitacion() {
         return habitacion;
     }
 
-    /**
-     * Devuelve la fecha de ingreso.
-     *
-     * @return fecha de entrada
-     */
-    public java.time.LocalDate getFechaIngreso() {
+    public LocalDate getFechaIngreso() {
         return fechaIngreso;
     }
 
-    /**
-     * Devuelve la fecha de egreso.
-     *
-     * @return fecha de salida
-     */
-    public java.time.LocalDate getFechaEgreso() {
+    public LocalDate getFechaEgreso() {
         return fechaEgreso;
     }
 
-    /**
-     * Devuelve el estado observable de la reserva.
-     *
-     * @return estado actual
-     */
     public EstadoReserva getEstado() {
         return estado.obtenerEstado();
     }
 
-    /**
-     * Cambia el comportamiento interno del estado.
-     * Este método lo usan las clases State para avanzar de estado.
-     *
-     * @param nuevoEstado nuevo comportamiento
-     */
     public void setEstado(gestionhotelera.state.EstadoReservaComportamiento nuevoEstado) {
         this.estado = nuevoEstado;
     }
 
-    /**
-     * Devuelve un resumen legible de la reserva.
-     *
-     * @return texto descriptivo
-     */
+    public List<Huesped> getOcupantes() {
+        return Collections.unmodifiableList(ocupantes);
+    }
+
+    public int getCantidadPersonas() {
+        return ocupantes.size();
+    }
+
+    public void agregarOcupante(Huesped ocupante) {
+        if (ocupante == null || ocupante.getDni() == null || ocupante.getDni().isBlank()) {
+            return;
+        }
+        for (Huesped existente : ocupantes) {
+            if (ocupante.getDni().equalsIgnoreCase(existente.getDni())) {
+                return;
+            }
+        }
+        ocupantes.add(ocupante);
+    }
+
+    public String ocupantesResumen() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ocupantes.size(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(ocupantes.get(i).getNombreCompleto());
+        }
+        return sb.toString();
+    }
+
+    public double getSenaPagada() {
+        return senaPagada;
+    }
+
+    public String getMetodoSena() {
+        return metodoSena;
+    }
+
     public String resumen() {
-        return "Reserva " + codigo + " | " + huesped.getNombreCompleto() + " | Habitación " + habitacion.getNumero() +
-                " | " + fechaIngreso + " -> " + fechaEgreso + " | Estado: " + getEstado();
+        return "Reserva " + codigo + " | Grupo " + grupoCodigo + " | " + huesped.getNombreCompleto()
+                + " | Habitación " + habitacion.getNumero()
+                + " | " + fechaIngreso + " -> " + fechaEgreso
+                + " | Ocupantes: " + ocupantesResumen()
+                + " | Estado: " + getEstado();
     }
 }

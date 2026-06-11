@@ -13,4 +13,12 @@ public interface DescuentoStrategy {
      * @return importe final con descuento
      */
     double aplicar(double total);
+
+    String getNombre();
+
+    double getPorcentaje();
+
+    default String getTipoClienteRequerido() {
+        return "";
+    }
 }
